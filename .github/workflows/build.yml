@@ -24,18 +24,23 @@ jobs:
             os: ubuntu-22.04
             build_type: Release
             generator: Ninja
+            generator_args: ""
             profile: scwx-linux_gcc-11
+
           - name: windows-release
             os: windows-2022
             build_type: Release
             generator: "Visual Studio 17 2022"
             generator_args: "-A x64"
             profile: scwx-windows_vs2026_x64
+
           - name: linux-debug
             os: ubuntu-22.04
             build_type: Debug
             generator: Ninja
+            generator_args: ""
             profile: scwx-linux_gcc-11-debug
+
           - name: windows-debug
             os: windows-2022
             build_type: Debug
@@ -44,10 +49,36 @@ jobs:
             profile: scwx-windows_vs2026_x64-debug
 
     steps:
+      # ---------------------------------------------------------
+      # Git configuration
+      # ---------------------------------------------------------
+
+      - name: Configure Git
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          git config --global core.longpaths true
+          git config --global --add safe.directory '*'
+
+      # ---------------------------------------------------------
+      # Checkout including all nested submodules
+      # ---------------------------------------------------------
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
+
+      - name: Refresh submodules
+        shell: bash
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive --jobs 4
+
+      # ---------------------------------------------------------
+      # Python
+      # ---------------------------------------------------------
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -55,10 +86,16 @@ jobs:
           python-version: "3.11"
 
       - name: Install Conan
-        run: python -m pip install --upgrade pip conan
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install conan
 
-      - name: Install Qt 6.11.1
-        if: runner.os != 'Linux' || true
+      # ---------------------------------------------------------
+      # Qt
+      # ---------------------------------------------------------
+
+      - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: "6.11.1"
@@ -66,10 +103,16 @@ jobs:
           tools: "tools_ifw"
           cache: true
 
+      # ---------------------------------------------------------
+      # Linux dependencies
+      # ---------------------------------------------------------
+
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
+        shell: bash
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
             build-essential \
             ninja-build \
@@ -82,63 +125,116 @@ jobs:
             libssl-dev \
             pkg-config
 
+      # ---------------------------------------------------------
+      # Conan dependencies
+      # ---------------------------------------------------------
+
       - name: Install dependencies with Conan
         shell: bash
         run: |
           mkdir -p build
           cd build
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            conan install .. \
-              --remote conancenter \
-              --build missing \
-              --profile:all ../tools/conan/profiles/${{ matrix.profile }} \
-              --settings:all build_type=${{ matrix.build_type }} \
-              --output-folder ./conan/
-          else
-            conan install .. \
-              --remote conancenter \
-              --build missing \
-              --profile:all ../tools/conan/profiles/${{ matrix.profile }} \
-              --settings:all build_type=${{ matrix.build_type }} \
-              --output-folder ./conan/
-          fi
+
+          conan install .. \
+            --remote conancenter \
+            --build missing \
+            --profile:all ../tools/conan/profiles/${{ matrix.profile }} \
+            --settings:all build_type=${{ matrix.build_type }} \
+            --output-folder ./conan/
+
+      # ---------------------------------------------------------
+      # CMake configuration
+      # ---------------------------------------------------------
 
       - name: Configure CMake
         shell: bash
         run: |
           cd build
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            cmake .. -G "${{ matrix.generator }}" ${{ matrix.generator_args }} \
-              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-              -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=../external/cmake-conan/conan_provider.cmake \
-              -DCONAN_HOST_PROFILE=${{ matrix.profile }} \
-              -DCONAN_BUILD_PROFILE=${{ matrix.profile }}
-          else
-            cmake .. -G "${{ matrix.generator }}" \
-              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-              -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=../external/cmake-conan/conan_provider.cmake \
-              -DCONAN_HOST_PROFILE=${{ matrix.profile }} \
-              -DCONAN_BUILD_PROFILE=${{ matrix.profile }}
-          fi
+
+          cmake .. \
+            -G "${{ matrix.generator }}" \
+            ${{ matrix.generator_args }} \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=../external/cmake-conan/conan_provider.cmake \
+            -DCONAN_HOST_PROFILE=${{ matrix.profile }} \
+            -DCONAN_BUILD_PROFILE=${{ matrix.profile }}
+
+      # ---------------------------------------------------------
+      # Build
+      # ---------------------------------------------------------
 
       - name: Build
         shell: bash
         run: |
           cd build
-          cmake --build . --config ${{ matrix.build_type }}
+
+          cmake --build . \
+            --config ${{ matrix.build_type }} \
+            --parallel
+
+      # ---------------------------------------------------------
+      # Tests
+      # ---------------------------------------------------------
 
       - name: Run tests
         shell: bash
         run: |
           cd build
-          ctest --output-on-failure --build-config ${{ matrix.build_type }}
+
+          ctest \
+            --output-on-failure \
+            --build-config ${{ matrix.build_type }}
+
+      # ---------------------------------------------------------
+      # Package Windows executable
+      # ---------------------------------------------------------
+
+      - name: Collect Windows build
+        if: runner.os == 'Windows' && success()
+        shell: bash
+        run: |
+          mkdir -p artifact
+
+          find build \
+            -type f \
+            \( \
+              -name "supercell-wx.exe" \
+              -o -name "supercell-wx*.exe" \
+              -o -name "*.dll" \
+            \) \
+            -exec cp {} artifact/ \;
+
+          echo "=== Windows artifact ==="
+          find artifact -type f
+
+      # ---------------------------------------------------------
+      # Package Linux executable
+      # ---------------------------------------------------------
+
+      - name: Collect Linux build
+        if: runner.os == 'Linux' && success()
+        shell: bash
+        run: |
+          mkdir -p artifact
+
+          find build \
+            -type f \
+            -name "supercell-wx*" \
+            -executable \
+            -exec cp {} artifact/ \;
+
+          echo "=== Linux artifact ==="
+          find artifact -type f
+
+      # ---------------------------------------------------------
+      # Upload artifact
+      # ---------------------------------------------------------
 
       - name: Upload artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: supercell-wx-${{ matrix.name }}
-          path: |
-            build/**/bin/supercell-wx*
-            build/**/bin/*.exe
-            build/**/bin/*.dll
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 7
