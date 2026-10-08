@@ -34,20 +34,6 @@ jobs:
             generator_args: "-A x64"
             profile: scwx-windows_vs2026_x64
 
-          - name: linux-debug
-            os: ubuntu-22.04
-            build_type: Debug
-            generator: Ninja
-            generator_args: ""
-            profile: scwx-linux_gcc-11-debug
-
-          - name: windows-debug
-            os: windows-2022
-            build_type: Debug
-            generator: "Visual Studio 17 2022"
-            generator_args: "-A x64"
-            profile: scwx-windows_vs2026_x64-debug
-
     steps:
       - name: Configure Git
         if: runner.os == 'Windows'
