@@ -134,6 +134,8 @@ public:
                             std::chrono::sys_days>
    void ListArchives(DateRange dates);
    void LoadArchives(std::chrono::system_clock::time_point dateTime);
+   void BeginArchiveLoad();
+   void EndArchiveLoad();
    void PruneArchives();
    void RefreshAsync();
    void Refresh();
@@ -165,6 +167,13 @@ public:
    std::chrono::hours loadHistoryDuration_ {kInitialLoadHistoryDuration_};
    std::chrono::sys_time<std::chrono::hours> prevLoadTime_ {};
    std::chrono::sys_days                     archiveLimit_ {};
+
+   // Number of archive (historical) alert loads that have been requested
+   // but have not finished. SelectTime is called once per map, and may be
+   // called again while a previous load is still waiting on archiveMutex_, so a
+   // count is used to keep the loading state visible until the last load
+   // completes.
+   std::atomic<std::size_t> archiveLoadCount_ {0};
 
    std::mutex                       archiveMutex_ {};
    std::list<std::chrono::sys_days> archiveDates_ {};
@@ -263,6 +272,11 @@ void TextEventManager::SelectTime(
 
    logger_->trace("Select Time: {}", util::TimeString(dateTime));
 
+   // Indicate that archive (historical) alerts are being loaded, before any
+   // archive work is requested. A load selection always has a non-default date
+   // / time, so live updates do not affect this state.
+   p->BeginArchiveLoad();
+
    boost::asio::post(
       p->threadPool_,
       [dateTime, this]()
@@ -294,6 +308,11 @@ void TextEventManager::SelectTime(
          {
             logger_->error(ex.what());
          }
+
+         // All archive work for this time selection is complete, and every
+         // AlertUpdated / AlertsRemoved for the load has been emitted from this
+         // thread, so the UI is up to date once this is delivered
+         p->EndArchiveLoad();
       });
 }
 
@@ -561,6 +580,24 @@ void TextEventManager::Impl::LoadArchives(
       {
          HandleMessage(message, true);
       }
+   }
+}
+
+void TextEventManager::Impl::BeginArchiveLoad()
+{
+   // Signal the start of loading only for the transition into a loading state
+   if (archiveLoadCount_.fetch_add(1) == 0)
+   {
+      Q_EMIT self_->AlertsLoading();
+   }
+}
+
+void TextEventManager::Impl::EndArchiveLoad()
+{
+   // Signal the end of loading only once every requested load has completed
+   if (archiveLoadCount_.fetch_sub(1) == 1)
+   {
+      Q_EMIT self_->AlertsLoaded();
    }
 }
 

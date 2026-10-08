@@ -43,6 +43,12 @@ signals:
    void AlertUpdated(const types::TextEventKey& key,
                      std::size_t                messageIndex,
                      boost::uuids::uuid         uuid);
+   // Loading state of archive (historical) alerts, only signaled for a
+   // non-default time selection. AlertsLoading is signaled when archive work
+   // begins, AlertsLoaded once every alert update for that selection has been
+   // emitted.
+   void AlertsLoading();
+   void AlertsLoaded();
 
 private:
    class Impl;

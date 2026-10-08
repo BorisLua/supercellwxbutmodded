@@ -142,6 +142,18 @@ void AlertDockWidgetImpl::ConnectSignals()
            &model::AlertModel::HandleAlert,
            Qt::QueuedConnection);
    connect(
+      textEventManager_.get(),
+      &manager::TextEventManager::AlertsLoading,
+      self_,
+      [this]() { self_->ui->alertLoadingLabel->setVisible(true); },
+      Qt::QueuedConnection);
+   connect(
+      textEventManager_.get(),
+      &manager::TextEventManager::AlertsLoaded,
+      self_,
+      [this]() { self_->ui->alertLoadingLabel->setVisible(false); },
+      Qt::QueuedConnection);
+   connect(
       self_->ui->alertView->selectionModel(),
       &QItemSelectionModel::selectionChanged,
       this,

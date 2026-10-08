@@ -1,0 +1,557 @@
+Você está trabalhando diretamente no código-fonte do Supercell Wx.
+
+## OBJETIVO
+
+Implementar uma indicação visual clara de que os **alertas/warnings estão sendo carregados quando o usuário está no Archive Mode**, principalmente durante a troca de horário/data.
+
+O problema atual é que, ao selecionar um horário histórico, o Supercell Wx começa a buscar os produtos de alertas/warnings em segundo plano, mas a interface não informa ao usuário que o carregamento está acontecendo. O painel pode permanecer vazio durante algum tempo, dando a impressão de que não existem alertas naquele horário.
+
+A implementação deve ser **mínima, nativa ao projeto e consistente com os padrões existentes do Supercell Wx**.
+
+---
+
+# IMPORTANTE: NÃO CONFIE EM PESQUISA HIPOTÉTICA
+
+Algumas pesquisas anteriores produziram uma interpretação incorreta do código.
+
+Foi inicialmente assumido que existia um `AlertManager` responsável por baixar visualmente os warnings através de `IemNetwork::GetAlerts()`. Isso NÃO corresponde ao código real deste checkout.
+
+O código real foi inspecionado e o sistema relevante utiliza principalmente:
+
+* `TextEventManager`
+* `AlertModel`
+* `AlertDockWidget`
+* `WarningsProvider`
+* `TimelineManager`
+* `AlertLayer`
+* produtos AWIPS/textuais provenientes do IEM
+* `SelectTime()` para o modo histórico/archive
+
+Portanto:
+
+**NÃO recrie o sistema usando o AlertManager hipotético dos relatórios anteriores.**
+
+Antes de editar qualquer arquivo, leia o código REAL presente no checkout e confirme os nomes, assinaturas, sinais, slots e fluxo atuais.
+
+Se algum detalhe abaixo não corresponder exatamente ao código atual, adapte-o ao código real em vez de inventar APIs.
+
+---
+
+# FLUXO REAL OBSERVADO
+
+O fluxo relevante atualmente é aproximadamente:
+
+```text
+Usuário entra no Archive Mode
+        ↓
+Seleciona data/hora histórica
+        ↓
+TimelineManager / integração com archive
+        ↓
+TextEventManager::SelectTime()
+        ↓
+operações assíncronas no thread pool
+        ↓
+ListArchives()
+        ↓
+LoadArchives()
+        ↓
+requisições aos produtos históricos do IEM
+        ↓
+AlertUpdated é emitido conforme os produtos chegam
+        ↓
+AlertModel processa/adiciona os eventos
+        ↓
+AlertDockWidget / AlertLayer atualizam a interface
+```
+
+O problema é que não existe uma indicação explícita de:
+
+```text
+Loading warnings...
+```
+
+durante o intervalo entre o início de `SelectTime()` e a conclusão do carregamento histórico.
+
+---
+
+# COMPORTAMENTO DESEJADO
+
+Quando um horário histórico for selecionado:
+
+```text
+Loading warnings...
+```
+
+deve aparecer no local apropriado da UI.
+
+Quando o carregamento terminar:
+
+```text
+Loading warnings...
+```
+
+deve desaparecer.
+
+Se os dados terminarem de carregar e não houver nenhum warning:
+
+```text
+No warnings
+```
+
+pode continuar sendo tratado pelo comportamento atual da interface. Não é necessário redesenhar o AlertModel.
+
+O objetivo principal desta tarefa é simplesmente deixar explícito que o sistema está carregando dados.
+
+---
+
+# REQUISITOS
+
+## 1. Adicionar estado explícito de carregamento
+
+O `TextEventManager` deve possuir uma forma clara de comunicar à UI:
+
+```text
+loading começou
+loading terminou
+```
+
+Pode ser feito através de sinais Qt, por exemplo:
+
+```cpp
+signals:
+   void AlertsLoading();
+   void AlertsLoaded();
+```
+
+ou uma nomenclatura equivalente que siga as convenções existentes no projeto.
+
+Antes de escolher o nome final, verifique como outros componentes do Supercell Wx representam estados de loading.
+
+Não introduza um padrão completamente novo se já existir um padrão adequado.
+
+---
+
+# 2. Emitir o início do carregamento
+
+Quando `TextEventManager::SelectTime()` começar a carregar dados históricos, o estado de loading deve ser ativado.
+
+A ideia é:
+
+```cpp
+emit AlertsLoading();
+```
+
+antes das operações assíncronas de:
+
+```text
+ListArchives
+LoadArchives
+```
+
+ou do equivalente real encontrado no código.
+
+IMPORTANTE:
+
+Não bloquear a UI.
+
+Não transformar as operações assíncronas em síncronas.
+
+Não mover requisições HTTP para a thread principal.
+
+---
+
+# 3. Detectar corretamente o FINAL do carregamento
+
+Este é o ponto mais importante da implementação.
+
+Não faça simplesmente:
+
+```cpp
+AlertsLoading();
+
+post(...);
+
+AlertsLoaded();
+```
+
+porque isso faria o indicador desaparecer imediatamente.
+
+O sinal de conclusão precisa ser emitido **somente quando todo o trabalho relevante do archive tiver terminado**.
+
+Leia cuidadosamente:
+
+* `TextEventManager::SelectTime()`
+* `ListArchives()`
+* `LoadArchives()`
+* callbacks utilizados
+* futures/tasks
+* thread pool
+* sinais `AlertUpdated`
+* qualquer mecanismo existente de sincronização
+
+Determine exatamente onde é seguro considerar o carregamento concluído.
+
+Se `ListArchives()` e `LoadArchives()` forem tarefas separadas, o estado só deve terminar depois que ambas as operações relevantes tiverem terminado.
+
+---
+
+# 4. Evitar race conditions
+
+O sistema pode receber rapidamente vários horários diferentes quando o usuário:
+
+* arrasta a timeline;
+* aperta play;
+* muda rapidamente de horário;
+* troca entre live/archive.
+
+A implementação não deve permitir que:
+
+```text
+horário A começa
+horário B começa
+horário A termina
+```
+
+faça o indicador desaparecer enquanto B ainda está carregando.
+
+Se necessário, associe o estado de loading ao horário selecionado ou use um mecanismo de geração/token.
+
+Exemplo conceitual:
+
+```text
+request 100 → loading
+request 101 → loading
+request 100 → terminou, NÃO esconder
+request 101 → terminou, esconder
+```
+
+Não copie este mecanismo cegamente; primeiro entenda o modelo de concorrência existente.
+
+---
+
+# 5. Atualizar a UI
+
+Verifique o `AlertDockWidget` real.
+
+O `.ui` atualmente contém principalmente:
+
+```text
+QTreeView alertTreeView
+```
+
+Você pode adicionar um `QLabel` de status no layout, caso seja a solução mais consistente.
+
+Por exemplo:
+
+```text
+Alerts
+-----------------------------
+Loading warnings...
+-----------------------------
+[tree view]
+```
+
+O texto deve ser simples e consistente com o resto da aplicação.
+
+Uma alternativa válida é utilizar uma mensagem na status bar principal, se isso for mais coerente com a arquitetura existente.
+
+Escolha a opção que exigir menos mudanças e combinar melhor com os padrões atuais.
+
+---
+
+# 6. Não quebrar o AlertModel
+
+Não é necessário alterar a lógica de:
+
+```cpp
+AlertModel::SetAlertList()
+```
+
+apenas para implementar o indicador.
+
+O model deve continuar recebendo os eventos normalmente.
+
+O loading indicator é uma camada de estado da interface, não uma mudança na representação dos alertas.
+
+---
+
+# 7. Não alterar a lógica de download
+
+Não faça mudanças desnecessárias em:
+
+* URLs do IEM
+* parsing dos produtos
+* formato dos produtos AWIPS
+* WarningsProvider
+* cache
+* timeline
+* radar
+* MapLibre
+* renderização dos polígonos
+
+A tarefa é somente adicionar feedback visual ao carregamento histórico dos warnings.
+
+---
+
+# 8. Manter compatibilidade com Live Mode
+
+O indicador não deve ficar permanentemente visível no modo live.
+
+Verifique como `TextEventManager` diferencia:
+
+```text
+live mode
+archive mode
+```
+
+e faça o indicador responder somente ao carregamento histórico quando apropriado.
+
+Se o sistema reutilizar o mesmo mecanismo de atualização para live e archive, implemente o estado de forma que não gere um falso:
+
+```text
+Loading warnings...
+```
+
+a cada refresh normal de live alerts.
+
+---
+
+# 9. Tratamento de erro
+
+Leia como erros de carregamento são tratados atualmente.
+
+Se o carregamento falhar, o estado de loading precisa ser finalizado.
+
+Nunca deixe:
+
+```text
+Loading warnings...
+```
+
+preso indefinidamente por causa de uma exceção, erro HTTP ou falha de parsing.
+
+Não é necessário criar um novo sistema de erro se o projeto já possui um.
+
+---
+
+# 10. Thread safety / Qt
+
+Tenha cuidado porque o carregamento acontece em background threads.
+
+Não manipule diretamente widgets Qt a partir das threads de download.
+
+O padrão deve ser:
+
+```text
+background thread
+      ↓
+Qt signal
+      ↓
+UI/main thread
+      ↓
+update QLabel / UI
+```
+
+Use o mecanismo de signals/slots existente no projeto.
+
+---
+
+# ARQUIVOS A INVESTIGAR PRIMEIRO
+
+Antes de modificar qualquer coisa, leia completamente as partes relevantes de:
+
+```text
+scwx-qt/source/scwx/qt/manager/text_event_manager.hpp
+scwx-qt/source/scwx/qt/manager/text_event_manager.cpp
+
+scwx-qt/source/scwx/qt/model/alert_model.hpp
+scwx-qt/source/scwx/qt/model/alert_model.cpp
+
+scwx-qt/source/scwx/qt/ui/alert_dock_widget.hpp
+scwx-qt/source/scwx/qt/ui/alert_dock_widget.cpp
+scwx-qt/source/scwx/qt/ui/alert_dock_widget.ui
+
+scwx-qt/source/scwx/qt/manager/timeline_manager.hpp
+scwx-qt/source/scwx/qt/manager/timeline_manager.cpp
+
+scwx-qt/source/scwx/qt/provider/warnings_provider.hpp
+```
+
+Também pesquise por:
+
+```text
+AlertUpdated
+SelectTime
+ListArchives
+LoadArchives
+archive_mode
+ArchiveMode
+SelectedTime
+LoadingChanged
+loading_
+```
+
+e descubra as implementações reais.
+
+---
+
+# ESTRATÉGIA DE IMPLEMENTAÇÃO
+
+Faça a implementação em etapas:
+
+### ETAPA 1 — entender
+
+Mapeie o fluxo real:
+
+```text
+Timeline
+ ↓
+SelectTime
+ ↓
+ListArchives
+ ↓
+LoadArchives
+ ↓
+AlertUpdated
+ ↓
+AlertModel
+ ↓
+AlertDockWidget
+```
+
+Não edite ainda.
+
+### ETAPA 2 — escolher o ponto de estado
+
+Determine exatamente:
+
+```text
+START = ?
+END = ?
+```
+
+onde START representa o começo real do carregamento histórico e END representa a conclusão de todas as operações necessárias.
+
+### ETAPA 3 — implementar sinais
+
+Adicione o mínimo necessário ao `TextEventManager`.
+
+Preferencialmente algo equivalente a:
+
+```cpp
+void AlertsLoading();
+void AlertsLoaded();
+```
+
+mas use nomes coerentes com o estilo real do projeto.
+
+### ETAPA 4 — conectar UI
+
+No `AlertDockWidget`, conecte os sinais:
+
+```text
+loading → mostrar QLabel
+loaded  → esconder QLabel
+```
+
+### ETAPA 5 — testar
+
+Compile o projeto.
+
+Depois teste:
+
+1. Live mode.
+2. Entrar no Archive Mode.
+3. Selecionar horário histórico.
+4. Confirmar que `Loading warnings...` aparece.
+5. Confirmar que os dados aparecem.
+6. Confirmar que o indicador desaparece.
+7. Selecionar outro horário.
+8. Repetir rapidamente vários horários.
+9. Testar horário sem warnings.
+10. Testar falha de rede, se possível.
+
+---
+
+# REQUISITO DE QUALIDADE
+
+Não quero uma implementação enorme.
+
+A mudança deve ser pequena e arquiteturalmente limpa.
+
+Priorize:
+
+```text
+código existente
++
+sinais Qt
++
+um pequeno estado de loading
++
+um QLabel
+```
+
+em vez de criar um novo subsystem.
+
+Não refatore partes não relacionadas.
+
+Não altere APIs públicas sem necessidade.
+
+Não introduza dependências novas.
+
+Não use polling adicional apenas para detectar o fim do carregamento.
+
+Não use sleeps.
+
+Não use busy loops.
+
+Não bloqueie a UI.
+
+---
+
+# ANTES DE EDITAR
+
+Primeiro faça uma análise curta do código REAL e informe:
+
+1. Onde `SelectTime()` começa o carregamento.
+2. Quais operações assíncronas são iniciadas.
+3. Onde cada operação termina.
+4. Qual é o ponto correto para considerar o archive completamente carregado.
+5. Qual widget será usado para mostrar o status.
+6. Quais arquivos serão modificados.
+
+Depois implemente.
+
+---
+
+# DEPOIS DE EDITAR
+
+Mostre um resumo:
+
+```text
+Modified:
+- arquivo 1
+- arquivo 2
+- arquivo 3
+
+Behavior:
+- loading começa em ...
+- loading termina em ...
+- UI mostra ...
+- live mode continua ...
+```
+
+E compile/teste.
+
+Se a compilação falhar, investigue e corrija os erros introduzidos pela sua própria alteração antes de terminar.
+
+---
+
+# REGRA PRINCIPAL
+
+Não invente APIs ou arquivos com base em relatórios anteriores.
+
+O checkout local é a fonte de verdade.
+
+Leia o código real, siga os padrões existentes do Supercell Wx e faça a menor alteração possível para fornecer feedback visual durante o carregamento de warnings no Archive Mode.
