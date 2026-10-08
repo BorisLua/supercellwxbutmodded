@@ -49,20 +49,12 @@ jobs:
             profile: scwx-windows_vs2026_x64-debug
 
     steps:
-      # ---------------------------------------------------------
-      # Git configuration
-      # ---------------------------------------------------------
-
       - name: Configure Git
         if: runner.os == 'Windows'
         shell: bash
         run: |
           git config --global core.longpaths true
           git config --global --add safe.directory '*'
-
-      # ---------------------------------------------------------
-      # Checkout including all nested submodules
-      # ---------------------------------------------------------
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,10 +68,6 @@ jobs:
           git submodule sync --recursive
           git submodule update --init --recursive --jobs 4
 
-      # ---------------------------------------------------------
-      # Python
-      # ---------------------------------------------------------
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -91,10 +79,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install conan
 
-      # ---------------------------------------------------------
-      # Qt
-      # ---------------------------------------------------------
-
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -103,16 +87,11 @@ jobs:
           tools: "tools_ifw"
           cache: true
 
-      # ---------------------------------------------------------
-      # Linux dependencies
-      # ---------------------------------------------------------
-
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         shell: bash
         run: |
           sudo apt-get update
-
           sudo apt-get install -y \
             build-essential \
             ninja-build \
@@ -124,10 +103,6 @@ jobs:
             libzip-dev \
             libssl-dev \
             pkg-config
-
-      # ---------------------------------------------------------
-      # Conan dependencies
-      # ---------------------------------------------------------
 
       - name: Install dependencies with Conan
         shell: bash
@@ -142,10 +117,6 @@ jobs:
             --settings:all build_type=${{ matrix.build_type }} \
             --output-folder ./conan/
 
-      # ---------------------------------------------------------
-      # CMake configuration
-      # ---------------------------------------------------------
-
       - name: Configure CMake
         shell: bash
         run: |
@@ -159,10 +130,6 @@ jobs:
             -DCONAN_HOST_PROFILE=${{ matrix.profile }} \
             -DCONAN_BUILD_PROFILE=${{ matrix.profile }}
 
-      # ---------------------------------------------------------
-      # Build
-      # ---------------------------------------------------------
-
       - name: Build
         shell: bash
         run: |
@@ -171,10 +138,6 @@ jobs:
           cmake --build . \
             --config ${{ matrix.build_type }} \
             --parallel
-
-      # ---------------------------------------------------------
-      # Tests
-      # ---------------------------------------------------------
 
       - name: Run tests
         shell: bash
@@ -185,11 +148,7 @@ jobs:
             --output-on-failure \
             --build-config ${{ matrix.build_type }}
 
-      # ---------------------------------------------------------
-      # Package Windows executable
-      # ---------------------------------------------------------
-
-      - name: Collect Windows build
+      - name: Collect Windows artifact
         if: runner.os == 'Windows' && success()
         shell: bash
         run: |
@@ -207,11 +166,7 @@ jobs:
           echo "=== Windows artifact ==="
           find artifact -type f
 
-      # ---------------------------------------------------------
-      # Package Linux executable
-      # ---------------------------------------------------------
-
-      - name: Collect Linux build
+      - name: Collect Linux artifact
         if: runner.os == 'Linux' && success()
         shell: bash
         run: |
@@ -225,10 +180,6 @@ jobs:
 
           echo "=== Linux artifact ==="
           find artifact -type f
-
-      # ---------------------------------------------------------
-      # Upload artifact
-      # ---------------------------------------------------------
 
       - name: Upload artifact
         if: success()
