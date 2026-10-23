@@ -1,177 +1,676 @@
-name: Build Supercell Wx
+name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - main
-      - develop
+      - 'develop'
   pull_request:
     branches:
-      - main
-      - develop
-  workflow_dispatch:
+      - 'develop'
+
+concurrency:
+  # Cancel in-progress jobs for the same pull request
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   build:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
-
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: linux-release
+          - name: windows_vs2026_x64
+            os: windows-2025-vs2026
+            build_type: Release
+            env_cc: ''
+            env_cxx: ''
+            compiler: msvc
+            cppflags: ''
+            ldflags: ''
+            vs_arch: x64
+            vs_version: 18
+            qt_version: 6.11.1
+            qt_arch_aqt: win64_msvc2022_64
+            qt_arch_dir: msvc2022_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: ''
+            conan_build_profile: scwx-windows_vs2026_x64
+            conan_host_profile: scwx-windows_vs2026_x64
+            appimage_arch: ''
+            artifact_suffix: windows-vs2026-x64
+          - name: windows_vs2026_arm64
+            os: windows-2025-vs2026
+            build_type: Release
+            env_cc: ''
+            env_cxx: ''
+            compiler: msvc
+            cppflags: ''
+            ldflags: ''
+            vs_arch: arm64
+            vs_version: 18
+            qt_version: 6.11.1
+            qt_arch_aqt: win64_msvc2022_arm64_cross_compiled
+            qt_arch_dir: msvc2022_arm64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: ''
+            conan_build_profile: scwx-windows_vs2026_x64
+            conan_host_profile: scwx-windows_vs2026_armv8
+            appimage_arch: ''
+            artifact_suffix: windows-vs2026-arm64
+          - name: linux_gcc-11_x64
             os: ubuntu-22.04
             build_type: Release
-            generator: Ninja
-            generator_args: ""
-            profile: scwx-linux_gcc-11
-
-          - name: windows-release
-            os: windows-2022
+            env_cc: gcc-11
+            env_cxx: g++-11
+            compiler: gcc
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_gcc-11
+            conan_host_profile: scwx-linux_gcc-11
+            appimage_arch: x86_64
+            artifact_suffix: linux-gcc-11-x64
+            compiler_packages: g++-11
+          - name: linux_gcc-13_x64
+            os: ubuntu-24.04
             build_type: Release
-            generator: "Visual Studio 17 2022"
-            generator_args: "-A x64"
-            profile: scwx-windows_vs2026_x64
+            env_cc: gcc-13
+            env_cxx: g++-13
+            compiler: gcc
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_gcc-13
+            conan_host_profile: scwx-linux_gcc-13
+            appimage_arch: x86_64
+            artifact_suffix: linux-gcc-13-x64
+            compiler_packages: g++-13
+          - name: linux_gcc-14_x64
+            os: ubuntu-24.04
+            build_type: Release
+            env_cc: gcc-14
+            env_cxx: g++-14
+            compiler: gcc
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_gcc-14
+            conan_host_profile: scwx-linux_gcc-14
+            appimage_arch: x86_64
+            artifact_suffix: linux-gcc-14-x64
+            compiler_packages: g++-14
+          - name: linux_gcc-15_x64
+            os: ubuntu-26.04
+            build_type: Release
+            env_cc: gcc-15
+            env_cxx: g++-15
+            compiler: gcc
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_gcc-15
+            conan_host_profile: scwx-linux_gcc-15
+            appimage_arch: x86_64
+            artifact_suffix: linux-gcc-15-x64
+            compiler_packages: g++-15
+          - name: linux_gcc-16_x64
+            os: ubuntu-26.04
+            build_type: Release
+            env_cc: gcc-16
+            env_cxx: g++-16
+            compiler: gcc
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_gcc-16
+            conan_host_profile: scwx-linux_gcc-16
+            appimage_arch: x86_64
+            artifact_suffix: linux-gcc-16-x64
+            compiler_packages: g++-16
+          - name: linux_clang-18_x64
+            os: ubuntu-24.04
+            build_type: Release
+            env_cc: clang-18
+            env_cxx: clang++-18
+            compiler: clang
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_clang-18
+            conan_host_profile: scwx-linux_clang-18
+            appimage_arch: x86_64
+            artifact_suffix: linux-clang-18-x64
+            compiler_packages: clang-18
+          - name: linux_clang-19_x64
+            os: ubuntu-24.04
+            build_type: Release
+            env_cc: clang-19
+            env_cxx: clang++-19
+            compiler: clang
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_clang-19
+            conan_host_profile: scwx-linux_clang-19
+            appimage_arch: x86_64
+            artifact_suffix: linux-clang-19-x64
+            compiler_packages: clang-19
+          - name: linux_clang-20_x64
+            os: ubuntu-24.04
+            build_type: Release
+            env_cc: clang-20
+            env_cxx: clang++-20
+            compiler: clang
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_clang-20
+            conan_host_profile: scwx-linux_clang-20
+            appimage_arch: x86_64
+            artifact_suffix: linux-clang-20-x64
+            compiler_packages: clang-20
+          - name: linux_clang-21_x64
+            os: ubuntu-26.04
+            build_type: Release
+            env_cc: clang-21
+            env_cxx: clang++-21
+            compiler: clang
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_clang-21
+            conan_host_profile: scwx-linux_clang-21
+            appimage_arch: x86_64
+            artifact_suffix: linux-clang-21-x64
+            compiler_packages: clang-21
+          - name: linux_clang-22_x64
+            os: ubuntu-26.04
+            build_type: Release
+            env_cc: clang-22
+            env_cxx: clang++-22
+            compiler: clang
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_64
+            qt_arch_dir: gcc_64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_clang-22
+            conan_host_profile: scwx-linux_clang-22
+            appimage_arch: x86_64
+            artifact_suffix: linux-clang-22-x64
+            compiler_packages: clang-22
+          - name: linux_gcc-13_arm64
+            os: ubuntu-24.04-arm
+            build_type: Release
+            env_cc: gcc-13
+            env_cxx: g++-13
+            compiler: gcc
+            cppflags: ''
+            ldflags: ''
+            qt_version: 6.11.1
+            qt_arch_aqt: linux_gcc_arm64
+            qt_arch_dir: gcc_arm64
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: --conf tools.system.package_manager:mode=install --conf tools.system.package_manager:sudo=True
+            conan_build_profile: scwx-linux_gcc-13_armv8
+            conan_host_profile: scwx-linux_gcc-13_armv8
+            appimage_arch: aarch64
+            artifact_suffix: linux-gcc-13-arm64
+            compiler_packages: g++-13
+          - name: macos_clang-20_x64
+            os: macos-15-intel
+            build_type: Release
+            env_cc: clang
+            env_cxx: clang++
+            compiler: clang
+            qt_version: 6.11.1
+            qt_arch_aqt: clang_64
+            qt_arch_dir: macos
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: ''
+            conan_build_profile: scwx-macos_clang-20
+            conan_host_profile: scwx-macos_clang-20
+            appimage_arch: ''
+            artifact_suffix: macos-x64
+          - name: macos_clang-20_arm64
+            os: macos-15
+            build_type: Release
+            env_cc: clang
+            env_cxx: clang++
+            compiler: clang
+            qt_version: 6.11.1
+            qt_arch_aqt: clang_64
+            qt_arch_dir: macos
+            qt_modules: qtimageformats qtmultimedia qtpositioning qtserialport
+            qt_tools: ''
+            conan_package_manager: ''
+            conan_build_profile: scwx-macos_clang-20_armv8
+            conan_host_profile: scwx-macos_clang-20_armv8
+            appimage_arch: ''
+            artifact_suffix: macos-arm64
+    name: ${{ matrix.name }}
+    env:
+      CC: ${{ matrix.env_cc }}
+      CXX: ${{ matrix.env_cxx }}
+      SCWX_VERSION: v0.6.1
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Configure Git
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          git config --global core.longpaths true
-          git config --global --add safe.directory '*'
+    - name: Setup
+      run: git config --global core.longpaths true
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        path: source
+        submodules: recursive
 
-      - name: Refresh submodules
-        shell: bash
-        run: |
-          git submodule sync --recursive
-          git submodule update --init --recursive --jobs 4
+    - name: Install Qt
+      uses: jdpurcell/install-qt-action@v5
+      env:
+        AQT_CONFIG: ${{ github.workspace }}/source/tools/aqt-settings.ini
+      with:
+        version: ${{ matrix.qt_version }}
+        arch: ${{ matrix.qt_arch_aqt }}
+        modules: ${{ matrix.qt_modules }}
+        tools: ${{ matrix.qt_tools }}
+        aqtsource: git+https://github.com/miurahr/aqtinstall.git@073e34d7c2ab4ae6961ed7cca690b3abd5ba5a7e
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Setup MSVC
+      if: matrix.compiler == 'msvc'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        if (-not $vsPath) { throw "Visual Studio with C++ tools not found" }
 
-      - name: Install Conan
-        shell: bash
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install conan
+        $vsDevCmd = Join-Path $vsPath "Common7\Tools\VsDevCmd.bat"
+        if (-not (Test-Path $vsDevCmd)) { throw "VsDevCmd not found at $vsDevCmd" }
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: "6.11.1"
-          arch: ${{ runner.os == 'Windows' && 'win64_msvc2022_64' || 'gcc_64' }}
-          tools: "tools_ifw"
-          cache: true
+        # GitHub-hosted Windows images are x64. ARM64 is produced with the
+        # x64-hosted cross compiler (Hostx64\arm64), not HostARM64\ARM64.
+        $targetArch = if ("${{ matrix.vs_arch }}" -eq "x64") { "amd64" } else { "${{ matrix.vs_arch }}" }
+        $hostArch = if ("${{ matrix.vs_arch }}" -eq "arm64") { "amd64" } else { $targetArch }
 
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            ninja-build \
-            libgl1-mesa-dev \
-            libglu1-mesa-dev \
-            libfontconfig1-dev \
-            libfreetype6-dev \
-            libxml2-dev \
-            libzip-dev \
-            libssl-dev \
-            pkg-config
+        cmd.exe /d /s /c """$vsDevCmd"" -arch=$targetArch -host_arch=$hostArch && set" |
+          ForEach-Object {
+            if ($_ -match "^(.*?)=(.*)$") {
+              "$($matches[1])=$($matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            }
+          }
 
-      - name: Install dependencies with Conan
-        shell: bash
-        run: |
-          mkdir -p build
-          cd build
+    - name: Setup Ubuntu Environment
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      shell: bash
+      run: |
+        sudo apt-get install doxygen \
+                             libfuse2 \
+                             ninja-build \
+                             wayland-protocols \
+                             libwayland-dev \
+                             libwayland-egl-backend-dev \
+                             flatpak \
+                             flatpak-builder \
+                             ${{ matrix.compiler_packages }}
+        # Remove unneeded items to free disk space
+        sudo apt-get clean
+        sudo rm -rf /home/runner/.rustup \
+                    /usr/local/.ghcup \
+                    /usr/local/lib/android \
+                    /usr/share/dotnet \
+                    /usr/share/swift
+        df -h
 
-          conan install .. \
-            --remote conancenter \
-            --build missing \
-            --profile:all ../tools/conan/profiles/${{ matrix.profile }} \
-            --settings:all build_type=${{ matrix.build_type }} \
-            --output-folder ./conan/
+    - name: Setup macOS Environment
+      if: ${{ startsWith(matrix.os, 'macos') }}
+      shell: bash
+      run: |
+        brew install llvm@20
+        LLVM_PATH=$(brew --prefix llvm@20)
+        echo "CC=${LLVM_PATH}/bin/clang" >> $GITHUB_ENV
+        echo "CXX=${LLVM_PATH}/bin/clang++" >> $GITHUB_ENV
+        echo "CPPFLAGS=-I${LLVM_PATH}/include" >> $GITHUB_ENV
+        echo "LDFLAGS=-L${LLVM_PATH}/lib -L${LLVM_PATH}/lib/c++" >> $GITHUB_ENV
 
-      - name: Configure CMake
-        shell: bash
-        run: |
-          cd build
+    - name: Setup Python Environment
+      shell: pwsh
+      run: |
+        pip install geopandas `
+                    GitPython `
+                    conan
 
-          cmake .. \
-            -G "${{ matrix.generator }}" \
-            ${{ matrix.generator_args }} \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=../external/cmake-conan/conan_provider.cmake \
-            -DCONAN_HOST_PROFILE=${{ matrix.profile }} \
-            -DCONAN_BUILD_PROFILE=${{ matrix.profile }}
+    - name: Restore Conan Packages
+      id: cache-conan
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.conan2
+        key: >-
+          build-v2-${{ matrix.conan_host_profile }}-${{
+            hashFiles(
+              './source/conanfile.py',
+              format('./source/tools/conan/profiles/{0}', matrix.conan_build_profile),
+              format('./source/tools/conan/profiles/{0}', matrix.conan_host_profile)
+            )
+          }}
 
-      - name: Build
-        shell: bash
-        run: |
-          cd build
+    - name: Install Conan Packages
+      id: conan-install
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true
+        conan config install `
+          ./source/tools/conan/profiles/${{ matrix.conan_build_profile }} `
+          -tf profiles
+        conan config install `
+          ./source/tools/conan/profiles/${{ matrix.conan_host_profile }} `
+          -tf profiles
+        mkdir build
+        cd build
+        mkdir conan
+        conan install ../source/ `
+          --remote conancenter `
+          --build missing `
+          --profile:build ${{ matrix.conan_build_profile }} `
+          --profile:host ${{ matrix.conan_host_profile }} `
+          --settings:all build_type=${{ matrix.build_type }} `
+          --output-folder ./conan/ `
+          ${{ matrix.conan_package_manager }}
+        conan cache clean
 
-          cmake --build . \
-            --config ${{ matrix.build_type }} \
-            --parallel
+    - name: Save Conan Packages
+      if: steps.conan-install.outcome == 'success' && steps.cache-conan.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.conan2
+        key: ${{ steps.cache-conan.outputs.cache-primary-key }}
 
-      - name: Run tests
-        shell: bash
-        run: |
-          cd build
+    - name: Build Supercell Wx
+      shell: pwsh
+      run: |
+        cd build
+        $cmakeArgs = @(
+          '../source/',
+          '-G', 'Ninja',
+          "-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}",
+          "-DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=${{ github.workspace }}/source/external/cmake-conan/conan_provider.cmake",
+          "-DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/supercell-wx",
+          "-DCONAN_HOST_PROFILE=${{ matrix.conan_host_profile }}",
+          "-DCONAN_BUILD_PROFILE=${{ matrix.conan_build_profile }}"
+        )
+        if ('${{ matrix.os }}' -like 'macos*') {
+          $cmakeArgs += '-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0'
+        }
+        cmake @cmakeArgs
+        ninja supercell-wx
 
-          ctest \
-            --output-on-failure \
-            --build-config ${{ matrix.build_type }}
+    - name: Build Supercell Wx (Test)
+      if: ${{ matrix.conan_build_profile == matrix.conan_host_profile }}
+      shell: pwsh
+      run: |
+        cd build
+        ninja wxtest
 
-      - name: Collect Windows artifact
-        if: runner.os == 'Windows' && success()
-        shell: bash
-        run: |
-          mkdir -p artifact
+    - name: Separate Debug Symbols (Linux)
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      shell: bash
+      run: |
+        cd build/
+        cd Release/
+        cd bin/
+        objcopy --only-keep-debug supercell-wx supercell-wx.debug
+        objcopy --strip-debug --strip-unneeded supercell-wx
+        cd ..
+        cd lib/
+        objcopy --only-keep-debug libQMapLibre.so libQMapLibre.so.debug
+        objcopy --strip-debug --strip-unneeded libQMapLibre.so
 
-          find build \
-            -type f \
-            \( \
-              -name "supercell-wx.exe" \
-              -o -name "supercell-wx*.exe" \
-              -o -name "*.dll" \
-            \) \
-            -exec cp {} artifact/ \;
+    - name: Install Supercell Wx
+      shell: pwsh
+      run: |
+        cd build
+        cmake --install . --component supercell-wx
 
-          echo "=== Windows artifact ==="
-          find artifact -type f
+    - name: Collect Artifacts
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      shell: bash
+      run: |
+        pushd supercell-wx/
+        cd lib/
+        ln -s libssl.so.3 libssl.so
+        rm -f libGLX.so*
+        rm -f libOpenGL.so*
+        cp -p ${RUNNER_WORKSPACE}/Qt/${{ matrix.qt_version }}/${{ matrix.qt_arch_dir }}/lib/libQt6WaylandClient.so* .
+        cd ..
+        mkdir -p plugins/
+        cd plugins/
+        mkdir -p sqldrivers/
+        cp -p "${RUNNER_WORKSPACE}/Qt/${{ matrix.qt_version }}/${{ matrix.qt_arch_dir }}/plugins/sqldrivers/libqsqlite.so" sqldrivers/
+        mkdir -p platforms/
+        cp -p "${RUNNER_WORKSPACE}/Qt/${{ matrix.qt_version }}/${{ matrix.qt_arch_dir }}/plugins/platforms/libqwayland.so" platforms/
+        cp -rp "${RUNNER_WORKSPACE}/Qt/${{ matrix.qt_version }}/${{ matrix.qt_arch_dir }}/plugins/wayland-decoration-client" .
+        cp -rp "${RUNNER_WORKSPACE}/Qt/${{ matrix.qt_version }}/${{ matrix.qt_arch_dir }}/plugins/wayland-graphics-integration-client" .
+        cp -rp "${RUNNER_WORKSPACE}/Qt/${{ matrix.qt_version }}/${{ matrix.qt_arch_dir }}/plugins/wayland-shell-integration" .
+        cd ..
+        popd
+        tar -czf supercell-wx-${{ matrix.artifact_suffix }}.tar.gz supercell-wx/
 
-      - name: Collect Linux artifact
-        if: runner.os == 'Linux' && success()
-        shell: bash
-        run: |
-          mkdir -p artifact
+    - name: Upload Artifacts (Windows)
+      if: ${{ startsWith(matrix.os, 'windows') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-${{ matrix.artifact_suffix }}
+        path: ${{ github.workspace }}/supercell-wx/
 
-          find build \
-            -type f \
-            -name "supercell-wx*" \
-            -executable \
-            -exec cp {} artifact/ \;
+    - name: Upload Debug Artifacts (Windows)
+      if: ${{ startsWith(matrix.os, 'windows') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-debug-${{ matrix.artifact_suffix }}
+        path: ${{ github.workspace }}/build/Release/bin/*.pdb
 
-          echo "=== Linux artifact ==="
-          find artifact -type f
+    - name: Upload Artifacts (Linux)
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-${{ matrix.artifact_suffix }}
+        path: ${{ github.workspace }}/supercell-wx-${{ matrix.artifact_suffix }}.tar.gz
 
-      - name: Upload artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: supercell-wx-${{ matrix.name }}
-          path: artifact/
-          if-no-files-found: error
-          retention-days: 7
+    - name: Upload Debug Artifacts (Linux)
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-debug-${{ matrix.artifact_suffix }}
+        path: |
+          ${{ github.workspace }}/build/Release/bin/*.debug
+          ${{ github.workspace }}/build/Release/lib/*.debug
+
+    - name: Install NSIS (Windows)
+      if: ${{ startsWith(matrix.os, 'windows') }}
+      shell: pwsh
+      run: |
+        choco install nsis -y --no-progress
+        if ($LASTEXITCODE -ne 0) { throw "choco install nsis failed with exit code $LASTEXITCODE" }
+
+    - name: Build Installer (Windows)
+      if: ${{ startsWith(matrix.os, 'windows') }}
+      shell: pwsh
+      run: |
+        cd build
+        cpack
+        & "${{ github.workspace }}/source/tools/build-windows-nsis-bootstrapper.ps1" `
+          -BuildDir "${{ github.workspace }}/build" `
+          -SourceDir "${{ github.workspace }}/source" `
+          -Arch "${{ matrix.vs_arch }}"
+
+    - name: Upload Installer (Windows)
+      if: ${{ startsWith(matrix.os, 'windows') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-installer-${{ matrix.artifact_suffix }}
+        path: |
+          ${{ github.workspace }}/build/supercell-wx-*.msi*
+          ${{ github.workspace }}/build/supercell-wx-*.exe
+
+    - name: Build AppImage (Linux)
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      env:
+        INSTALL_DIR: ${{ github.workspace }}/supercell-wx/
+        APPIMAGE_DIR: ${{ github.workspace }}/supercell-wx-appimage/
+        LDAI_UPDATE_INFORMATION: gh-releases-zsync|dpaulat|supercell-wx|latest|*${{ matrix.appimage_arch }}.AppImage.zsync
+        LDAI_OUTPUT: supercell-wx-${{ env.SCWX_VERSION }}-${{ matrix.appimage_arch }}.AppImage
+        LINUXDEPLOY_OUTPUT_APP_NAME: supercell-wx
+        LINUXDEPLOY_OUTPUT_VERSION: ${{ env.SCWX_VERSION }}
+      shell: bash
+      run: |
+        wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${{ matrix.appimage_arch }}.AppImage
+        chmod +x linuxdeploy-${{ matrix.appimage_arch }}.AppImage
+        cp "${{ github.workspace }}/source/scwx-qt/res/icons/scwx-256.png" supercell-wx.png
+        cp "${{ github.workspace }}/source/scwx-qt/res/linux/supercell-wx.desktop" .
+        cp -r "${{ env.INSTALL_DIR }}" "${{ env.APPIMAGE_DIR }}"
+        pushd "${{ env.APPIMAGE_DIR }}"
+        mkdir -p usr/
+        mv bin/ usr/
+        mv lib/ usr/
+        mv plugins/ usr/
+        popd
+        ./linuxdeploy-${{ matrix.appimage_arch }}.AppImage --appdir ${{ env.APPIMAGE_DIR }} -i supercell-wx.png -d supercell-wx.desktop
+        ./linuxdeploy-${{ matrix.appimage_arch }}.AppImage --appdir ${{ env.APPIMAGE_DIR }} --output appimage
+        rm -f linuxdeploy-${{ matrix.appimage_arch }}.AppImage
+
+    - name: Upload AppImage (Linux)
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-appimage-${{ matrix.artifact_suffix }}
+        path: ${{ github.workspace }}/*-${{ matrix.appimage_arch }}.AppImage*
+
+    - name: Build FlatPak (Linux)
+      # Ubuntu 22.04 ships flatpak-builder < 1.4, which still runs appstream-compose
+      # inside the SDK. Freedesktop 25.08 removed that tool; 24.04+ builder uses
+      # host appstreamcli compose instead. Publish only consumes gcc-13 artifacts.
+      if: ${{ startsWith(matrix.os, 'ubuntu') && matrix.os != 'ubuntu-22.04' }}
+      env:
+        INSTALL_DIR: ${{ github.workspace }}/supercell-wx/
+        FLATPAK_DIR: ${{ github.workspace }}/supercell-wx-flatpak/
+        # CI always builds the nightly branch. Stable is assigned later by the
+        # Flatpak repo publish job when a GitHub Release is published (tags
+        # are often created after this workflow has already finished).
+        FLATPAK_DEFAULT_BRANCH: nightly
+      shell: bash
+      run: |
+        cp -r ${{ env.INSTALL_DIR }} ${{ env.FLATPAK_DIR }}
+        # Stage generated AppStream metainfo into the Flatpak source dir
+        cp "${{ github.workspace }}/build/scwx-qt/res/linux/net.supercellwx.app.metainfo.xml" \
+           "${{ env.FLATPAK_DIR }}/"
+        # Copy krb5 libraries to flatpak
+        cp -a /usr/lib/*/libkrb5.so* \
+              /usr/lib/*/libkrb5support.so* \
+              /usr/lib/*/libgssapi_krb5.so* \
+              /usr/lib/*/libk5crypto.so* \
+              /usr/lib/*/libkeyutils.so* \
+              ${{ env.FLATPAK_DIR }}/lib
+        # Copy GLU library to flatpak
+        cp -a /usr/lib/*/libGLU.so* \
+              ${{ env.FLATPAK_DIR }}/lib
+
+        flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        flatpak-builder --force-clean \
+            --user \
+            --install-deps-from=flathub \
+            --default-branch="${FLATPAK_DEFAULT_BRANCH}" \
+            --repo=flatpak-repo \
+            --install flatpak-build \
+            ${{ github.workspace }}/source/tools/net.supercellwx.app.yml
+        flatpak build-bundle flatpak-repo supercell-wx.flatpak \
+            net.supercellwx.app "${FLATPAK_DEFAULT_BRANCH}"
+
+    - name: Upload FlatPak (Linux)
+      if: ${{ startsWith(matrix.os, 'ubuntu') && matrix.os != 'ubuntu-22.04' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-flatpak-${{ matrix.artifact_suffix }}
+        path: ${{ github.workspace }}/supercell-wx.flatpak
+
+    - name: Build Disk Image (macOS)
+      if: ${{ startsWith(matrix.os, 'macos') }}
+      shell: pwsh
+      run: |
+        cd build
+        cpack
+
+    - name: Upload Disk Image (macOS)
+      if: ${{ startsWith(matrix.os, 'macos') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-${{ matrix.artifact_suffix }}
+        path: ${{ github.workspace }}/build/supercell-wx-*.dmg*
+
+    - name: Test Supercell Wx
+      if: ${{ matrix.conan_build_profile == matrix.conan_host_profile }}
+      working-directory: ${{ github.workspace }}/build
+      env:
+        MAPBOX_API_KEY:   ${{ secrets.MAPBOX_API_KEY }}
+        MAPTILER_API_KEY: ${{ secrets.MAPTILER_API_KEY }}
+      run: ctest -C ${{ matrix.build_type }} --exclude-regex "test_mln.*|NtpClient.*|UpdateManager.*"
+
+    - name: Upload Test Logs
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: supercell-wx-test-logs-${{ matrix.name }}
+        path: ${{ github.workspace }}/build/Testing/
